@@ -18,7 +18,7 @@ impl Workout {
         let day_num = day_num.parse::<u8>().expect("Not a workout day number");
         Workout {
             title: title.to_string(),
-            body: body.to_string(),
+            body: body.trim_end().to_string(),
             day: day_num }
     }
 }
@@ -87,4 +87,83 @@ fn create_workout_calendar(workout_date: NaiveDate, workouts: Vec<Workout>) -> C
         );
     }
     calendar.done()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_workout() {
+        let workout = Workout::new("1. Tag", "abc  \n  ");
+        assert_eq!(workout.day, 1);
+        assert_eq!(workout.title, "1. Tag");
+        assert_eq!(workout.body, "abc");
+    }
+
+    #[test]
+    fn test_get_input() {
+        let input = get_input();
+        assert_eq!(input.len(), 79435);
+        assert!(input.contains("1. TAG"));
+        assert!(input.contains("60. TAG"));
+    }
+
+    #[test]
+    fn test_split_days() {
+        let input = "1. TAG\nabc\n2. TAG\ndef\n3. TAG\nghi";
+        let list = split_days(input);
+        assert_eq!(6, list.len());
+        assert_eq!(list[0], "1. TAG");
+        assert_eq!(list[1], "\nabc\n");
+        assert_eq!(list[2], "2. TAG");
+        assert_eq!(list[3], "\ndef\n");
+        assert_eq!(list[4], "3. TAG");
+        assert_eq!(list[5], "\nghi");
+    }
+
+    #[test]
+    fn test_create_workouts() {
+        let input = "1. TAG\nabc\n2. TAG\ndef\n3. TAG\nghi";
+        let list = split_days(input);
+        let workouts = create_workouts(list);
+        assert_eq!(3, workouts.len());
+        assert_eq!(workouts[0].day, 1);
+        assert_eq!(workouts[0].title, "1. TAG");
+        assert_eq!(workouts[0].body, "\nabc");
+        assert_eq!(workouts[1].day, 2);
+        assert_eq!(workouts[1].title, "2. TAG");
+        assert_eq!(workouts[1].body, "\ndef");
+        assert_eq!(workouts[2].day, 3);
+        assert_eq!(workouts[2].title, "3. TAG");
+        assert_eq!(workouts[2].body, "\nghi");
+    }
+
+    #[test]
+    fn test_create_workout_calendar() {
+        let input = "1. TAG\nabc\n2. TAG\ndef\n3. TAG\nghi";
+        let list = split_days(input);
+        let workouts = create_workouts(list);
+        let cal = create_workout_calendar(NaiveDate::from_ymd_opt(2000, 1, 2).unwrap(),
+                                workouts);
+        let cal = cal.to_string();
+        assert!(cal.contains("X-WR-CALNAME"));
+        assert!(cal.contains("DTEND;VALUE=DATE:20000102"));
+        assert!(cal.contains("DTSTART;VALUE=DATE:20000102"));
+        assert!(cal.contains("DESCRIPTION:3. TAG"));
+        assert!(cal.contains("ghi"));
+        assert!(cal.contains("SUMMARY:3. TAG"));
+    }
+
+    #[test]
+    fn test_create_calendar_from_input() {
+
+        let cal = create_calendar_from_input(NaiveDate::from_ymd_opt(2025, 12, 31).unwrap(),
+        59);
+        let cal = cal.to_string();
+        assert!(cal.contains("DESCRIPTION:59. TAG: ENJOY"));
+        assert!(cal.contains("DESCRIPTION:60. TAG"));
+        assert!(cal.contains("DTEND;VALUE=DATE:20260101"));
+        assert!(cal.contains("Pause"));
+    }
 }
