@@ -15,7 +15,7 @@ struct Workout {
 
 impl Workout {
     fn new(title: String, body: String) -> Self {
-        let day_num: Vec<&str> = title.split(".").collect();
+        let day_num: Vec<&str> = title.split('.').collect();
         let day_num = day_num[0];
         let day_num = day_num.parse::<u8>().expect("Not a workout day number");
         Workout {
@@ -41,8 +41,7 @@ pub fn create_calendar_from_input(workout_date: NaiveDate, first_workout: u8) ->
 
     let workouts = workouts.into_iter().filter(|w| w.day >= first_workout).collect();
 
-    let calendar = create_workout_calendar(workout_date, workouts);
-    calendar
+    create_workout_calendar(workout_date, workouts)
 }
 
 fn create_workout_calendar(workout_date: NaiveDate, workouts: Vec<Workout>) -> Calendar {
