@@ -1,10 +1,12 @@
 use base64::engine::general_purpose;
 use chrono::{Duration, NaiveDate};
 use icalendar::{Calendar, Component, Event, EventLike};
-use lazy_static::lazy_static;
 use base64::Engine;
-use regex::Regex;
+use crate::dfmf::workout_list::get_workout_list;
 
+mod dfmf;
+
+#[derive(Clone)]
 struct Workout {
     title: String,
     body: String,
@@ -12,60 +14,30 @@ struct Workout {
 }
 
 impl Workout {
-    fn new(title: &str, body: &str) -> Self {
+    fn new(title: String, body: String) -> Self {
         let day_num: Vec<&str> = title.split(".").collect();
         let day_num = day_num[0];
         let day_num = day_num.parse::<u8>().expect("Not a workout day number");
         Workout {
-            title: title.to_string(),
+            title,
             body: body.trim_end().to_string(),
             day: day_num }
     }
 }
 
-fn get_input() -> String {
-    let str = std::fs::read_to_string("input/dfmf.encoded.txt").expect("Can't read input file");
-    let str = general_purpose::STANDARD.decode(str).expect("Decode error");
-    let str = String::from_utf8(str).expect("Can't decode input");
-    return str;
+fn deobfuscation(text: &str) -> String {
+    let str = general_purpose::STANDARD.decode(text).expect("Decode error");
+   String::from_utf8(str).expect("Can't decode input")
 }
 
-fn split_days(text: &str) -> Vec<&str>
-{
-    lazy_static! {
-        static ref SPLIT_DAY_RE: Regex = Regex::new(r"([0-9]{1,2}\. TAG[^\n]*)").expect("Regex error");
-    }
-    let mut result = Vec::new();
-
-    let mut last = 0;
-    for m in SPLIT_DAY_RE.find_iter(text) {
-
-        let index = m.start();
-
-        if last != index {
-            result.push(&text[last..index]);
-        }
-        let matched = m.range();
-        result.push(&text[matched.start..matched.end]);
-        last = index + &matched.len();
-
-    }
-    if last < text.len() {
-        result.push(&text[last..]);
-    }
-
-    result
-}
-
-fn create_workouts(texts: Vec<&str>) -> Vec<Workout> {
-    let chunk = texts.chunks(2);
-    return chunk.into_iter().map(|c| Workout::new(c[0], c[1])).collect();
+fn create_workouts() -> Vec<Workout> {
+    let workout_list = get_workout_list();
+    workout_list.map(|w| Workout::new(deobfuscation(w.title),
+                                              deobfuscation(w.body))).to_vec()
 }
 
 pub fn create_calendar_from_input(workout_date: NaiveDate, first_workout: u8) -> Calendar {
-    let input = get_input();
-    let input = split_days(&input);
-    let workouts = create_workouts(input);
+    let workouts = create_workouts();
 
     let workouts = workouts.into_iter().filter(|w| w.day >= first_workout).collect();
 
@@ -95,55 +67,32 @@ mod tests {
 
     #[test]
     fn test_new_workout() {
-        let workout = Workout::new("1. Tag", "abc  \n  ");
+        let workout = Workout::new("1. Tag".to_string(), "abc  \n  ".to_string());
         assert_eq!(workout.day, 1);
         assert_eq!(workout.title, "1. Tag");
         assert_eq!(workout.body, "abc");
     }
 
     #[test]
-    fn test_get_input() {
-        let input = get_input();
-        assert_eq!(input.len(), 79435);
-        assert!(input.contains("1. TAG"));
-        assert!(input.contains("60. TAG"));
-    }
-
-    #[test]
-    fn test_split_days() {
-        let input = "1. TAG\nabc\n2. TAG\ndef\n3. TAG\nghi";
-        let list = split_days(input);
-        assert_eq!(6, list.len());
-        assert_eq!(list[0], "1. TAG");
-        assert_eq!(list[1], "\nabc\n");
-        assert_eq!(list[2], "2. TAG");
-        assert_eq!(list[3], "\ndef\n");
-        assert_eq!(list[4], "3. TAG");
-        assert_eq!(list[5], "\nghi");
-    }
-
-    #[test]
     fn test_create_workouts() {
-        let input = "1. TAG\nabc\n2. TAG\ndef\n3. TAG\nghi";
-        let list = split_days(input);
-        let workouts = create_workouts(list);
-        assert_eq!(3, workouts.len());
+        let workouts = create_workouts();
+        assert_eq!(60, workouts.len());
         assert_eq!(workouts[0].day, 1);
-        assert_eq!(workouts[0].title, "1. TAG");
-        assert_eq!(workouts[0].body, "\nabc");
+        assert!(workouts[0].title.contains("1. TAG"));
+        assert!(workouts[0].body.contains("Atmen"));
         assert_eq!(workouts[1].day, 2);
-        assert_eq!(workouts[1].title, "2. TAG");
-        assert_eq!(workouts[1].body, "\ndef");
+        assert!(workouts[1].title.contains("2. TAG"));
+        assert!(workouts[1].body.contains("Muskelkater"));
         assert_eq!(workouts[2].day, 3);
-        assert_eq!(workouts[2].title, "3. TAG");
-        assert_eq!(workouts[2].body, "\nghi");
+        assert!(workouts[2].title.contains("3. TAG"));
+        assert!(workouts[2].body.contains("halte durch"));
+        assert_eq!(workouts[59].day, 60);
+        assert!(workouts[59].title.contains("60. TAG"));
     }
 
     #[test]
     fn test_create_workout_calendar() {
-        let input = "1. TAG\nabc\n2. TAG\ndef\n3. TAG\nghi";
-        let list = split_days(input);
-        let workouts = create_workouts(list);
+        let workouts = create_workouts();
         let cal = create_workout_calendar(NaiveDate::from_ymd_opt(2000, 1, 2).unwrap(),
                                 workouts);
         let cal = cal.to_string();
