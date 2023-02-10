@@ -1,7 +1,6 @@
-
 pub struct WorkoutEntryObfuscated<'a> {
     pub title: &'a str,
-    pub body: &'a str
+    pub body: &'a str,
 }
 
 pub fn get_workout_list() -> [WorkoutEntryObfuscated<'static>; 60] {

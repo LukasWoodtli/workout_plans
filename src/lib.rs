@@ -1,8 +1,8 @@
+use crate::dfmf::workout_list::get_workout_list;
 use base64::engine::general_purpose;
+use base64::Engine;
 use chrono::{Duration, NaiveDate};
 use icalendar::{Calendar, Component, Event, EventLike};
-use base64::Engine;
-use crate::dfmf::workout_list::get_workout_list;
 
 mod dfmf;
 
@@ -10,7 +10,7 @@ mod dfmf;
 struct Workout {
     title: String,
     body: String,
-    day: u8
+    day: u8,
 }
 
 impl Workout {
@@ -21,25 +21,32 @@ impl Workout {
         Workout {
             title,
             body: body.trim_end().to_string(),
-            day: day_num }
+            day: day_num,
+        }
     }
 }
 
 fn deobfuscation(text: &str) -> String {
-    let str = general_purpose::STANDARD.decode(text).expect("Decode error");
-   String::from_utf8(str).expect("Can't decode input")
+    let str = general_purpose::STANDARD
+        .decode(text)
+        .expect("Decode error");
+    String::from_utf8(str).expect("Can't decode input")
 }
 
 fn create_workouts() -> Vec<Workout> {
     let workout_list = get_workout_list();
-    workout_list.map(|w| Workout::new(deobfuscation(w.title),
-                                              deobfuscation(w.body))).to_vec()
+    workout_list
+        .map(|w| Workout::new(deobfuscation(w.title), deobfuscation(w.body)))
+        .to_vec()
 }
 
 pub fn create_calendar_from_input(workout_date: NaiveDate, first_workout: u8) -> Calendar {
     let workouts = create_workouts();
 
-    let workouts = workouts.into_iter().filter(|w| w.day >= first_workout).collect();
+    let workouts = workouts
+        .into_iter()
+        .filter(|w| w.day >= first_workout)
+        .collect();
 
     create_workout_calendar(workout_date, workouts)
 }
@@ -92,8 +99,7 @@ mod tests {
     #[test]
     fn test_create_workout_calendar() {
         let workouts = create_workouts();
-        let cal = create_workout_calendar(NaiveDate::from_ymd_opt(2000, 1, 2).unwrap(),
-                                workouts);
+        let cal = create_workout_calendar(NaiveDate::from_ymd_opt(2000, 1, 2).unwrap(), workouts);
         let cal = cal.to_string();
         assert!(cal.contains("X-WR-CALNAME"));
         assert!(cal.contains("DTEND;VALUE=DATE:20000102"));
@@ -105,9 +111,7 @@ mod tests {
 
     #[test]
     fn test_create_calendar_from_input() {
-
-        let cal = create_calendar_from_input(NaiveDate::from_ymd_opt(2025, 12, 31).unwrap(),
-        59);
+        let cal = create_calendar_from_input(NaiveDate::from_ymd_opt(2025, 12, 31).unwrap(), 59);
         let cal = cal.to_string();
         assert!(cal.contains("DESCRIPTION:59. TAG: ENJOY"));
         assert!(cal.contains("DESCRIPTION:60. TAG"));
